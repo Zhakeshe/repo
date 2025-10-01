@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<title>Маңғыстау археологиялық карта</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css"/>
+<style>
+body { margin:0; font-family:sans-serif; }
+#map { height:80vh; width:100%; }
+#controls { position:absolute; top:10px; left:10px; z-index:1000; background:#fff; padding:10px; border-radius:8px; }
+#slider { margin:10px 0; }
+.card-list { max-width:1000px; margin:20px auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:20px; }
+.card { background:#fff; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,.15); overflow:hidden; }
+.card-content { padding:12px; }
+.card h3 { margin:0 0 8px 0; color:#1976d2; }
+.card p { font-size:14px; line-height:1.4; }
+.emoji-marker { font-size:28px; text-align:center; line-height:28px; }
+/* Фото карта попапы мен карточкаға жарасуы үшін кішкентай ғана стиль */
+.card img { width:100%; border-radius:8px; margin:6px 0; display:block; }
+.popup-img { width:100%; border-radius:8px; margin:6px 0; display:block; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <label>Ғасыр диапазоны:</label>
+  <div id="slider"></div>
+  <label for="categoryFilter">Объект:</label>
+  <select id="categoryFilter">
+    <option value="all">Барлығы</option>
+    <option value="мешіт">Мешіт 🕌</option>
+    <option value="қорым">Қорым ⚱️</option>
+    <option value="қалашық">Қалашық 🏰</option>
+    <option value="петроглиф">Петроглиф ⛰️</option>
+  </select>
+</div>
+
+<div id="map"></div>
+<div class="card-list" id="cardList"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
+
+<script>
+// Ақтау координаты
+const aktau = [43.65, 51.15];
+const map = L.map('map').setView(aktau, 9);
+
+// Спутниктік карта
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution:'Tiles © Esri'
+}).addTo(map);
+
+// 30 археологиялық объект (әрқайсында интернеттегі фото бар)
+const places = [
+  {name:"Шақпақ-Ата 🕌", coords:[44.25,51.5], cat:"мешіт", century:15, emoji:"🕌",
+   desc:"Шақпақ-Ата жерасты мешіті тарихи маңызды орын. Археологтар мұнда зерттеу жүргізіп, мәдени мұраны, дәстүрлерді және тұрғындардың ежелгі өмір салтын анықтай алады.",
+   img:"https://avatars.mds.yandex.net/i?id=56b66b777a59578e5e80d6c2d80c1d46_l-12544737-images-thumbs&n=13"},
+  {name:"Сисем-Ата ⚱️", coords:[44.1,52.0], cat:"қорым", century:12, emoji:"⚱️",
+   desc:"Сисем-Ата қорымы Маңғыстаудың ежелгі қабірлерін қамтиды. Археологтар тарихи дәуірлерді зерттеп, мәдени мұра мен дәстүрлерді анықтай алады.",
+   img:"https://avatars.mds.yandex.net/i?id=1905f39e7f2c77ee5e5dc9cd12bdd3dd_l-9211032-images-thumbs&n=13"},
+  {name:"Бозжыра қалашығы 🏰", coords:[44.3,52.3], cat:"қалашық", century:17, emoji:"🏰",
+   desc:"Бозжыра қалашығы тарихи сауда жолында орналасқан. Археологтар қалашықтың құрылысын, тұрғын үйлерін, қорғандық жүйесін зерттеп мәдени мұраны анықтай алады.",
+   img:"https://eurasia.travel/wp-content/uploads/2024/10/12.-Boszhira-mountain.jpg"},
+  {name:"Қарашоқы петроглифтері ⛰️", coords:[44.0,51.8], cat:"петроглиф", century:3, emoji:"⛰️",
+   desc:"Қарашоқыдағы тас суреттер ежелгі мәдениетті бейнелейді. Археологтар петроглифтер арқылы тарихи тұрмыс, наным-сенімдер мен тұрмыс ерекшеліктерін зерттей алады.",
+   img:"https://www.lada.kz/uploads/posts/2017-03/1490187796_a1.-dji_0003-1-2.jpg"},
+  {name:"Ақши қорымы ⚱️", coords:[43.9,51.6], cat:"қорым", century:5, emoji:"⚱️",
+   desc:"Ақши қорымы бірнеше қабірден тұрады. Археологтар тарихи дәуірлерді зерттеп, қорымдық дәстүрлер мен мәдени мұраны анықтауға мүмкіндік алады.",
+   img:"https://avatars.mds.yandex.net/i?id=96a04d26e0ca22893d63f63601e6513b_l-5327796-images-thumbs&ref=rim&n=13&w=3000&h=2000"},
+  {name:"Шоқы-Ата мешіті 🕌", coords:[44.15,51.9], cat:"мешіт", century:14, emoji:"🕌",
+   desc:"Шоқы-Ата мешіті тарихи мәдени ескерткіш болып саналады. Археологтар құрылыс стилі мен діни дәстүрлерді зерттеп мәдени мұра жинай алады.",
+   img:"https://massaget.kz/userdata/uploads/u58604/1431508719_l.jpg"},
+  {name:"Теңіз петроглифтері ⛰️", coords:[44.05,51.7], cat:"петроглиф", century:2, emoji:"⛰️",
+   desc:"Теңіз маңындағы тас суреттер ежелгі тұрғындардың өмірін бейнелейді. Археологтар суреттер арқылы тарихи дәуірлерді, тұрмыс ерекшеліктерін зерттей алады.",
+   img:"https://www.holamon.cat/sites/default/files/pla/images/2021-05/1280px-Ancient_Azerbaijan_4.jpeg"},
+  {name:"Құмқұлақ қалашығы 🏰", coords:[44.22,51.9], cat:"қалашық", century:16, emoji:"🏰",
+   desc:"Құмқұлақ қалашығы тарихи сауда жолында орналасқан. Археологтар қалашықтың құрылысын, тұрғын үйлерін және қорғандық жүйесін зерттейді.",
+   img:"https://avatars.mds.yandex.net/i?id=081e321f473a13c246cb755a29f001c2_l-5220716-images-thumbs&n=13"},
+  {name:"Ақшабұлақ қорымы ⚱️", coords:[44.12,51.85], cat:"қорым", century:7, emoji:"⚱️",
+   desc:"Ақшабұлақ қорымы бірнеше қабірден тұрады. Археологтар тарихи дәуірлерді зерттеп, мәдени мұра мен дәстүрлерді анықтай алады.",
+   img:"https://aktobenasledie.kz/wp-content/uploads/2019/12/nekropol-karasakal-sandyktas-2048x1365.jpg"},
+  {name:"Бақыршық петроглифтері ⛰️", coords:[44.08,51.95], cat:"петроглиф", century:6, emoji:"⛰️",
+   desc:"Бақыршықтағы тас суреттер ежелгі мәдениетті бейнелейді. Археологтар суреттер арқылы тарихи дәуірлерді, тұрмыс және наным-сенімдерді зерттейді.",
+   img:"https://avatars.mds.yandex.net/i?id=c5e63eb6c9eb6fbc73e0d9f08486dbc2_l-5877288-images-thumbs&n=13"},
+  {name:"Маңғыстау қалашығы 🏰", coords:[44.28,51.7], cat:"қалашық", century:18, emoji:"🏰",
+   desc:"Маңғыстау қалашығы тарихи сауда жолында орналасқан. Археологтар қалашықтың тұрғын үйлерін, қорғандық жүйесін зерттеп мәдени мұраны анықтай алады.",
+   img:"https://wildticketasia.com/uploads/posts/2024-01/1706443933_kyzylkala-settlement-gorodische-kyzylkala-1.jpg"},
+  {name:"Көктөбе қорымы ⚱️", coords:[44.18,51.65], cat:"қорым", century:8, emoji:"⚱️",
+   desc:"Көктөбе қорымы бірнеше қабірден тұрады. Археологтар бұл қорым арқылы тарихи дәуірлер мен мәдени дәстүрлерді зерттей алады.",
+   img:"https://mangystau.inmap.kz/uploads/images/large_whatsapp_image_2024-11-25_at_115703__8ae65bc537dcfe5c90bb6602377396e2.jpeg"},
+  {name:"Жетіқара мешіті 🕌", coords:[44.32,51.8], cat:"мешіт", century:13, emoji:"🕌",
+   desc:"Жетіқара мешіті тарихи мәдени ескерткіш болып табылады. Мұнда діни дәстүрлер мен мешіт құрылысының ерекшеліктерін зерттеуге болады.",
+   img:""},
+  {name:"Саура петроглифтері ⛰️", coords:[44.05,51.88], cat:"петроглиф", century:4, emoji:"⛰️",
+   desc:"Саурадағы тас суреттер ежелгі мәдениетті бейнелейді. Археологтар суреттер арқылы тарихи тұрмыс пен діни нанымдарды анықтай алады.",
+   img:"https://indyguide-web-development.s3.us-east-2.amazonaws.com/listings/images/thumbnail/2-Day-Tour-Besshatyr-Kurgans-And-Arkharly-Petroglyphs-1698854839504.webp"},
+  {name:"Таңбалы қорымы ⚱️", coords:[44.2,51.75], cat:"қорым", century:9, emoji:"⚱️",
+   desc:"Таңбалы қорымы тарихи қабірлерден тұрады. Археологтар бұл археологиялық нысан арқылы дәстүрлер мен мәдени мұраны зерттей алады.",
+   img:""},
+  {name:"Қызылқұм қалашығы 🏰", coords:[44.25,51.85], cat:"қалашық", century:19, emoji:"🏰",
+   desc:"Қызылқұм қалашығы сауда жолында орналасқан. Археологтар қалашықтың құрылысын зерттеп тарихи мәліметтерді жинай алады.",
+   img:"https://avatars.dzeninfra.ru/get-zen_doc/5234612/pub_637cdfa24c582919adf8b1c5_637ce0df29ec521fd576358f/scale_1200"},
+  {name:"Бозшоқы мешіті 🕌", coords:[44.1,51.72], cat:"мешіт", century:16, emoji:"🕌",
+   desc:"Бозшоқы мешіті тарихи мәдени ескерткіш. Мұнда діни ғимарат құрылымы мен дәстүрлер зерттеледі.",
+   img:"https://el.kz/upload/medialibrary/ff4/ff4b967c71368e2f827194fcc52f77a0.jpg"},
+  {name:"Ақтау петроглифтері ⛰️", coords:[44.15,51.77], cat:"петроглиф", century:5, emoji:"⛰️",
+   desc:"Ақтау петроглифтері ежелгі мәдениетті көрсетеді. Археологтар суреттер арқылы тарихи дәуірлерді анықтай алады.",
+   img:"https://img.inform.kz/kazinform-photobank/media/2023-11-04/6fd8d326-edce-43f6-9d55-2ca1e14de68a.jpeg"},
+  {name:"Жемқор қорымы ⚱️", coords:[44.05,51.92], cat:"қорым", century:10, emoji:"⚱️",
+   desc:"Жемқор қорымы бірнеше қабірден тұрады. Мұнда археологтар тарихи дәуірлер мен мәдени дәстүрлерді зерттейді.",
+   img:"https://upload.wikimedia.org/wikipedia/kk/c/c5/%D0%A3%D3%99%D0%BB%D0%B8_%D2%9B%D0%BE%D1%80%D1%8B%D0%BC%D1%8B.jpg"},
+  {name:"Кендірші қалашығы 🏰", coords:[44.2,51.9], cat:"қалашық", century:20, emoji:"🏰",
+   desc:"Кендірші қалашығы тарихи сауда жолында орналасқан. Археологтар қалашықтың тұрғын үйлері мен қорғандық жүйесін зерттейді.",
+   img:"https://e-history.kz/storage/images/news/70/Po/Vp/70PoVpkrARvQI8SitXjpn73r2S6O1grspg79RcLj.jpg"},
+  {name:"Қарақұм мешіті 🕌", coords:[44.12,51.82], cat:"мешіт", century:11, emoji:"🕌",
+   desc:"Қарақұм мешіті тарихи мәдени ескерткіш болып табылады. Мұнда мешіт құрылымы мен діни дәстүрлер зерттеледі.",
+   img:"https://a.d-cd.net/6d2519s-1920.jpg"},
+  {name:"Жетіқыр петроглифтері ⛰️", coords:[44.18,51.78], cat:"петроглиф", century:1, emoji:"⛰️",
+   desc:"Жетіқыр петроглифтері ежелгі тұрғындардың өмірін көрсетеді. Археологтар суреттер арқылы тарихи дәуірлерді зерттейді.",
+   img:"https://kiely-karta.ppu.edu.kz/images/mp/kemertuz-3.JPG"},
+  {name:"Бақаш қорымы ⚱️", coords:[44.22,51.8], cat:"қорым", century:6, emoji:"⚱️",
+   desc:"Бақаш қорымы бірнеше қабірден тұрады. Археологтар тарихи дәуірлер мен мәдени дәстүрлерді зерттейді.",
+   img:"https://silkadv.com/sites/default/files/Kazahstan/Pamyatniki/Zapadnyi_Kazahstan/Pamytniki_Mangtshlaka/Nekropoli_Mangistau/Uali/0_0_097-min.JPG"},
+  {name:"Қаракөл қалашығы 🏰", coords:[44.28,51.83], cat:"қалашық", century:21, emoji:"🏰",
+   desc:"Қаракөл қалашығы сауда жолында орналасқан. Археологтар қалашықтың құрылысын зерттеп, мәдени мұраны анықтай алады.",
+   img:"https://mangystau.inmap.kz/uploads/images/large_kizilkala__82563c26131364311cccb18e12dfa160.jpg"},
+  {name:"Сарытөбе мешіті 🕌", coords:[44.3,51.86], cat:"мешіт", century:12, emoji:"🕌",
+   desc:"Сарытөбе мешіті тарихи мәдени ескерткіш. Мұнда діни дәстүрлер мен құрылыс ерекшеліктері зерттеледі.",
+   img:"https://i.ytimg.com/vi/meEWH247_AI/maxresdefault.jpg"},
+  {name:"Қарашық петроглифтері ⛰️", coords:[44.08,51.9], cat:"петроглиф", century:3, emoji:"⛰️",
+   desc:"Қарашық петроглифтері ежелгі мәдениетті бейнелейді. Археологтар суреттер арқылы тарихи дәуірлерді зерттейді.",
+   img:"https://qazir.kz/upload/images/DSC_0656.JPG"},
+  {name:"Ақтабан қорымы ⚱️", coords:[44.15,51.8], cat:"қорым", century:7, emoji:"⚱️",
+   desc:"Ақтабан қорымы бірнеше қабірден тұрады. Археологтар мұнда тарихи дәуірлерді зерттеп, мәдени мұраны анықтай алады.",
+   img:"https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Karaman_Ata_4.jpg/500px-Karaman_Ata_4.jpg"},
+  {name:"Құрақ қалашығы 🏰", coords:[44.25,51.88], cat:"қалашық", century:18, emoji:"🏰",
+   desc:"Құрақ қалашығы сауда жолында орналасқан. Археологтар қалашықты зерттеп, тарихи мәдени мұраны анықтай алады.",
+   img:"https://sun9-78.userapi.com/impg/BufY9ZTst-sMyS8wOtoR1TC20XLU-MZJWLoRPw/S0gytOjYPa0.jpg?size=1280x720&quality=95&sign=89b8f1bd8d4397caff001b20d004676c&c_uniq_tag=vVGYV9RMtqSbmnDjuflWu1Y9OILGC95oChHCxS5N9vY&type=album"},
+  {name:"Шаңырақ мешіті 🕌", coords:[44.2,51.75], cat:"мешіт", century:14, emoji:"🕌",
+   desc:"Шаңырақ мешіті тарихи мәдени ескерткіш болып саналады. Археологтар мешіт құрылысы мен дәстүрлерін зерттейді.", 
+   img:""},
+  {name:"Жайық петроглифтері ⛰️", coords:[44.1,51.9], cat:"петроглиф", century:2, emoji:"⛰️",
+   desc:"Жайық петроглифтері ежелгі мәдениетті көрсетеді. Археологтар суреттер арқылы тарихи дәуірлерді зерттейді.",
+   img:""}
+];
+
+// Маркерлер мен карточкалар
+const markers = [];
+const cardList = document.getElementById('cardList');
+places.forEach(p=>{
+  const marker = L.marker(p.coords, {icon:L.divIcon({className:'emoji-marker', html:p.emoji, iconSize:[28,28]})}).addTo(map)
+    .bindPopup(`<b>${p.name}</b><br>
+      <img class="popup-img" src="${p.img}" alt="${p.name}">
+      ${p.desc}<br>
+      <button onclick="routeTo([${p.coords}])">🚗 Актаудан бару</button>`);
+  marker.category = p.cat;
+  marker.century = p.century;
+  markers.push(marker);
+
+  const card = document.createElement('div');
+  card.className='card';
+  card.innerHTML=`
+    <div class="card-content">
+      <h3>${p.name} ${p.emoji}</h3>
+      <img src="${p.img}" alt="${p.name}">
+      <p>${p.desc}</p>
+      <div class="buttons"><a href="#" onclick="routeTo([${p.coords}])">🚗 Актаудан бару</a></div>
+    </div>`;
+  cardList.appendChild(card);
+});
+
+// noUiSlider арқылы ғасыр фильтрі
+const slider = document.getElementById('slider');
+noUiSlider.create(slider, {
+    start: [1,21],
+    connect:true,
+    step:1,
+    range:{ min:1, max:21 },
+    tooltips:true,
+    format:{to:(v)=>Math.round(v), from:(v)=>Number(v)}
+});
+slider.noUiSlider.on('update', function(values){
+    const [min,max]=values.map(v=>parseInt(v));
+    markers.forEach(m=>{
+        if(m.century >= min && m.century <= max) map.addLayer(m);
+        else map.removeLayer(m);
+    });
+});
+
+// Категория фильтрі
+document.getElementById('categoryFilter').addEventListener('change', function(){
+  const val=this.value;
+  markers.forEach(m=>{
+    const showCat = val==='all'||m.category===val;
+    const sliderVals = slider.noUiSlider.get().map(v=>parseInt(v));
+    const showCent = m.century >= sliderVals[0] && m.century <= sliderVals[1];
+    if(showCat && showCent) map.addLayer(m);
+    else map.removeLayer(m);
+  });
+});
+
+// Маршрут
+let routeControl;
+function routeTo(coords){
+  if(routeControl){ map.removeControl(routeControl); }
+  routeControl = L.Routing.control({
+    waypoints:[L.latLng(aktau[0],aktau[1]), L.latLng(coords[0],coords[1])],
+    routeWhileDragging:false
+  }).addTo(map);
+}
+</script>
+  <!-- ==== CHAT WIDGET (BEGIN) ==== -->
+<style>
+  #chat-toggle {
+    position: fixed; right: 20px; bottom: 20px;
+    border: none; border-radius: 999px; padding: 12px 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,.2); cursor: pointer; z-index: 3000;
+    background:#1976d2; color:#fff; font-weight:600;
+  }
+  #chat-widget {
+    position: fixed; right: 20px; bottom: 80px; width: 360px; max-height: 70vh;
+    background:#fff; border-radius: 14px; box-shadow: 0 16px 40px rgba(0,0,0,.25);
+    display:none; flex-direction: column; overflow: hidden; z-index: 3000;
+    border: 1px solid #e5e7eb;
+  }
+  .cw-header {
+    padding: 10px 12px; background:#1976d2; color:#fff; font-weight:700;
+    display:flex; align-items:center; justify-content: space-between;
+  }
+  .cw-body { padding: 12px; overflow-y: auto; height: 48vh; }
+  .cw-msg { margin: 8px 0; max-width: 85%; line-height: 1.35; }
+  .cw-user { background:#e3f2fd; border-radius:12px 12px 2px 12px; padding:8px 10px; margin-left:auto; }
+  .cw-bot  { background:#f3f4f6; border-radius:12px 12px 12px 2px; padding:8px 10px; }
+  .cw-input {
+    display:flex; gap:8px; padding: 10px; border-top: 1px solid #eee; background:#fafafa;
+  }
+  .cw-input input {
+    flex:1; border:1px solid #ddd; border-radius:10px; padding:10px;
+    outline: none;
+  }
+  .cw-input button {
+    border:none; border-radius:10px; padding:10px 12px; background:#1976d2; color:#fff; font-weight:600; cursor:pointer;
+  }
+</style>
+
+<button id="chat-toggle">Чат</button>
+
+<div id="chat-widget" role="dialog" aria-label="Сайт чат-боты">
+  <div class="cw-header">
+    <span>Көмекші бот</span>
+    <button id="chat-close" style="background:transparent;color:#fff;border:none;font-size:18px;cursor:pointer">×</button>
+  </div>
+  <div class="cw-body" id="cw-body" aria-live="polite"></div>
+  <div class="cw-input">
+    <input id="cw-input" type="text" placeholder="Сұрағыңызды жазыңыз..." />
+    <button id="cw-send">Жіберу</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const toggle = document.getElementById('chat-toggle');
+  const widget = document.getElementById('chat-widget');
+  const closeBtn = document.getElementById('chat-close');
+  const bodyEl = document.getElementById('cw-body');
+  const inputEl = document.getElementById('cw-input');
+  const sendBtn = document.getElementById('cw-send');
+
+  const history = []; // {role:'user'|'assistant', content:'...'}
+
+  function appendMsg(text, who='bot'){
+    const div = document.createElement('div');
+    div.className = 'cw-msg ' + (who==='user' ? 'cw-user' : 'cw-bot');
+    div.textContent = text;
+    bodyEl.appendChild(div);
+    bodyEl.scrollTop = bodyEl.scrollHeight;
+  }
+
+  toggle.addEventListener('click', ()=>{ widget.style.display = 'flex'; inputEl.focus(); });
+  closeBtn.addEventListener('click', ()=>{ widget.style.display = 'none'; });
+
+  async function send(){
+    const text = inputEl.value.trim();
+    if(!text) return;
+    inputEl.value = '';
+    appendMsg(text, 'user');
+    history.push({role:'user', content:text});
+    appendMsg('Жауап жазылуда...', 'bot');
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ message: text, history })
+      });
+      const data = await res.json();
+      bodyEl.lastChild.textContent = data.answer || 'Жауап алынбады.';
+      if (data.answer) history.push({role:'assistant', content:data.answer});
+    } catch (e) {
+      bodyEl.lastChild.textContent = 'Қате: серверге қосылмады.';
+    }
+  }
+
+  sendBtn.addEventListener('click', send);
+  inputEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter') send(); });
+
+  // алғашқы сәлем
+  setTimeout(()=>{
+    appendMsg('Сәлем! Сұрақ қойып көріңіз 🤗');
+  }, 300);
+})();
+</script>
+</body>
+
+</html>
+
