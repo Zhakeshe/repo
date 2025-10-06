@@ -1,8 +1,9 @@
 {
   "functions": {
-    "pages/api/**/*.js": {
-      "memory": 512,
-      "maxDuration": 31
+    "pages/api/*.js": {
+      "runtime": "nodejs20.x"
     }
-  }
+  },
+  "buildCommand": "next build",
+  "outputDirectory": ".next"
 }
