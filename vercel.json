@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "pages/api/*.js": {
-      "runtime": "vercel-node@4.0.0"
-    }
-  }
-}
