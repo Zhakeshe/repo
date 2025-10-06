@@ -1,9 +1,7 @@
 {
   "functions": {
     "pages/api/*.js": {
-      "runtime": "nodejs20.x"
+      "runtime": "vercel-node@4.0.0"
     }
-  },
-  "buildCommand": "next build",
-  "outputDirectory": ".next"
+  }
 }
