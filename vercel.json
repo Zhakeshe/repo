@@ -1,7 +1,6 @@
 {
-  "version": 2,
   "functions": {
-    "api/**/*.js": {
+    "pages/api/**/*.js": {
       "memory": 512,
       "maxDuration": 30
     }
