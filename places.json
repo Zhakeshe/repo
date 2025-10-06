@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "name": "Шақпақ-Ата",
+    "coords": [44.25, 51.5],
+    "cat": "мешіт",
+    "century": 15,
+    "emoji": "🕌",
+    "desc": "Шақпақ-Ата жерасты мешіті тарихи маңызды орын.",
+    "images": ["https://avatars.mds.yandex.net/i?id=56b66b777a59578e5e80d6c2d80c1d46_l-12544737-images-thumbs&n=13"],
+    "source": "open-data / local survey",
+    "tags": ["underground", "religion"]
+  },
+  {
+    "id": 2,
+    "name": "Сисем-Ата",
+    "coords": [44.1, 52.0],
+    "cat": "қорым",
+    "century": 12,
+    "emoji": "⚱️",
+    "desc": "Сисем-Ата қорымы Маңғыстаудың ежелгі қабірлерін қамтиды.",
+    "images": ["https://avatars.mds.yandex.net/i?id=1905f39e7f2c77ee5e5dc9cd12bdd3dd_l-9211032-images-thumbs&n=13"],
+    "source": "archive photos",
+    "tags": ["burial", "heritage"]
+  },
+  {
+    "id": 3,
+    "name": "Бозжыра қалашығы",
+    "coords": [44.3, 52.3],
+    "cat": "қалашық",
+    "century": 17,
+    "emoji": "🏰",
+    "desc": "Бозжыра қалашығы тарихи сауда жолында орналасқан.",
+    "images": ["https://eurasia.travel/wp-content/uploads/2024/10/12.-Boszhira-mountain.jpg"],
+    "source": "field-photo",
+    "tags": ["ruins", "trade"]
+  }
+]
