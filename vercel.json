@@ -1,7 +1,6 @@
 {
-  "rootDirectory": "repo",
   "functions": {
-    "repo/pages/api/*.js": {
+    "pages/api/*.js": {
       "runtime": "vercel-node@4.0.0"
     }
   }
